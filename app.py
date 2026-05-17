@@ -57,7 +57,9 @@ def get_data(endpoint, params=None):
 
 # --- SIDEBAR: SELEÇÃO DE SESSÃO ---
 st.sidebar.title("🛠️ Settings")
-year = st.sidebar.selectbox(t["select_year"], [2024, 2023])
+
+# Modificado para incluir 2025 e 2026 na lista de seleção
+year = st.sidebar.selectbox(t["select_year"], [2026, 2025, 2024, 2023])
 
 with st.spinner(t["loading"]):
     df_sessions = get_data("sessions", {"year": year, "session_name": "Race"})
@@ -97,7 +99,6 @@ if not df_sessions.empty:
                 if not df_laps.empty:
                     df_pace = df_laps[df_laps['driver_number'].isin(sel_nums)].copy()
                     
-                    # Forçar conversão estrita para numérico para evitar o TypeError anterior
                     df_pace['lap_number'] = pd.to_numeric(df_pace['lap_number'], errors='coerce')
                     df_pace['lap_duration'] = pd.to_numeric(df_pace['lap_duration'], errors='coerce')
                     
@@ -105,7 +106,6 @@ if not df_sessions.empty:
                     df_pace = df_pace.merge(df_drivers[['driver_number', 'broadcast_name']], on='driver_number', how='left')
                     
                     if not df_pace.empty:
-                        # Criando gráfico de linha simples e limpo (sem a dependência do trendline="lowess" que quebrava)
                         fig_pace = px.line(
                             df_pace.sort_values(by='lap_number'), 
                             x="lap_number", 
@@ -164,7 +164,6 @@ if not df_sessions.empty:
                                 df_car = get_data("car_data", {"session_key": sk, "driver_number": num})
                             
                             if not df_car.empty:
-                                # Forçar tipos numéricos corretos
                                 df_car['speed'] = pd.to_numeric(df_car['speed'], errors='coerce')
                                 max_speed = df_car['speed'].max()
                                 
