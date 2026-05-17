@@ -12,7 +12,7 @@ st.markdown("This application extracts and analyzes telemetry/timing data direct
 # Barra lateral para filtros - Usando dados fixos do GP de Abu Dhabi 2024 para garantir o funcionamento do piloto
 st.sidebar.header("Race Selection (Demo)")
 session_key = 9645  # Abu Dhabi 2024 Race
-st.sidebar.text(code=f"Session Key: {session_key} (Abu Dhabi 2024)")
+st.sidebar.code(f"Session Key: {session_key} (Abu Dhabi 2024)")
 
 # URLs da OpenF1 API
 DRIVERS_URL = f"https://api.openf1.org/v1/drivers?session_key={session_key}"
