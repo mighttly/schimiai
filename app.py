@@ -32,6 +32,7 @@ texts = {
         "stint_title": "Histórico de Pneus (Stints)",
         "speed_analysis": "Análise de Velocidade Máxima",
         "no_data": "Dados não disponíveis.",
+        "circuit_layout_title": "Traçado Dinâmico da Pista (Via Telemetria GPS)",
         "error_api": "Conexão com a OpenF1 API falhou ou a sessão não possui dados limpos."
     },
     "English": {
@@ -54,37 +55,19 @@ texts = {
         "stint_title": "Tyre History (Stints)",
         "speed_analysis": "Top Speed Analysis",
         "no_data": "Data not available.",
+        "circuit_layout_title": "Dynamic Circuit Layout (Via GPS Telemetry)",
         "error_api": "Connection to OpenF1 API failed or the session has no clean data."
     }
 }
 t = texts[language]
 
-# --- METADADOS DAS PISTAS (Distâncias Oficiais e IDs de Imagem da F1) ---
+# --- METADADOS DAS PISTAS (Distâncias Oficiais em KM) ---
 track_meta = {
-    "Bahrain": {"length": 5.412, "img_id": "Bahrain"},
-    "Jeddah": {"length": 6.174, "img_id": "Saudi_Arabia"},
-    "Melbourne": {"length": 5.278, "img_id": "Australia"},
-    "Suzuka": {"length": 5.807, "img_id": "Japan"},
-    "Shanghai": {"length": 5.451, "img_id": "China"},
-    "Miami": {"length": 5.412, "img_id": "Miami"},
-    "Imola": {"length": 4.909, "img_id": "Emilia_Romagna"},
-    "Monaco": {"length": 3.337, "img_id": "Monaco"},
-    "Montreal": {"length": 4.361, "img_id": "Canada"},
-    "Barcelona": {"length": 4.657, "img_id": "Spain"},
-    "Spielberg": {"length": 4.318, "img_id": "Austria"},
-    "Silverstone": {"length": 5.891, "img_id": "Great_Britain"},
-    "Budapest": {"length": 4.381, "img_id": "Hungary"},
-    "Spa": {"length": 7.004, "img_id": "Belgium"},
-    "Zandvoort": {"length": 4.259, "img_id": "Netherlands"},
-    "Monza": {"length": 5.793, "img_id": "Italy"},
-    "Baku": {"length": 6.003, "img_id": "Azerbaijan"},
-    "Singapore": {"length": 4.940, "img_id": "Singapore"},
-    "Austin": {"length": 5.513, "img_id": "USA"},
-    "Mexico City": {"length": 4.304, "img_id": "Mexico"},
-    "Sao Paulo": {"length": 4.309, "img_id": "Brazil"},
-    "Las Vegas": {"length": 6.201, "img_id": "Las_Vegas"},
-    "Lusail": {"length": 5.419, "img_id": "Qatar"},
-    "Abu Dhabi": {"length": 5.281, "img_id": "Abu_Dhabi"}
+    "Bahrain": 5.412, "Jeddah": 6.174, "Melbourne": 5.278, "Suzuka": 5.807, "Shanghai": 5.451,
+    "Miami": 5.412, "Imola": 4.909, "Monaco": 3.337, "Montreal": 4.361, "Barcelona": 4.657,
+    "Spielberg": 4.318, "Silverstone": 5.891, "Budapest": 4.381, "Spa": 7.004, "Zandvoort": 4.259,
+    "Monza": 5.793, "Baku": 6.003, "Singapore": 4.940, "Austin": 5.513, "Mexico City": 4.304,
+    "Sao Paulo": 4.309, "Las Vegas": 6.201, "Lusail": 5.419, "Abu Dhabi": 5.281
 }
 
 # --- FUNÇÃO AUXILIAR DE FORMATAÇÃO DE TEMPO ---
@@ -172,8 +155,7 @@ if not df_sessions.empty:
                     fastest_lap_str = t["no_data"]
 
                 loc = session_info['location']
-                metadata = track_meta.get(loc, {"length": 5.0, "img_id": "Unknown"})
-                length = metadata["length"]
+                length = track_meta.get(loc, 5.0)
                 laps_count = max_lap if pd.notna(max_lap) else 0
 
                 with col_stats:
@@ -185,14 +167,33 @@ if not df_sessions.empty:
                     st.metric(t["total_km"], f"{round(length * laps_count, 2)} km")
                 
                 with col_map:
-                    # MODIFICAÇÃO: Utilização do mapeamento robusto de IDs de imagem da F1 CDN
-                    img_id = metadata["img_id"]
-                    map_url = f"https://media.formula1.com/image/upload/f_auto,q_auto/content/dam/fom-website/2018-redesign-assets/circuit-maps/16x9/{img_id}.png"
+                    st.subheader(t["circuit_layout_title"])
+                    # GERAÇÃO DO MAPA VIA GPS: Puxamos uma amostra de localização de um dos pilotos selecionados
+                    with st.spinner(t["loading"]):
+                        df_loc = get_data("location", {"session_key": sk, "driver_number": sel_nums[0]})
                     
-                    if img_id != "Unknown":
-                        st.image(map_url, caption=f"Circuit Layout: {session_info['circuit_short_name']}", use_container_width=True)
+                    if not df_loc.empty and 'x' in df_loc.columns and 'y' in df_loc.columns:
+                        df_loc['x'] = pd.to_numeric(df_loc['x'], errors='coerce')
+                        df_loc['y'] = pd.to_numeric(df_loc['y'], errors='coerce')
+                        df_track = df_loc.iloc[::20].dropna(subset=['x', 'y']) # Downsampling para performance
+                        
+                        # Criando o mapa nativo usando gráfico de linha contínuo espacial
+                        fig_map = px.line(
+                            df_track, x="x", y="y",
+                            template="plotly_dark",
+                            color_discrete_sequence=['#deff9a']
+                        )
+                        fig_map.update_traces(line=dict(width=4))
+                        fig_map.update_layout(
+                            xaxis=dict(visible=False, showgrid=False, zeroline=False),
+                            yaxis=dict(visible=False, showgrid=False, zeroline=False, scaleanchor="x", scaleratio=1),
+                            margin=dict(l=10, r=10, t=10, b=10),
+                            height=400,
+                            showlegend=False
+                        )
+                        st.plotly_chart(fig_map, use_container_width=True)
                     else:
-                        st.info("Layout map preview currently unavailable for this circuit.")
+                        st.info("GPS track layout data preview currently unavailable for this session.")
 
             # --- ABA 1: RITMO & PNEUS ---
             with tab1:
@@ -288,4 +289,3 @@ if not df_sessions.empty:
         st.error(t["error_api"])
 else:
     st.error(t["error_api"])
-
