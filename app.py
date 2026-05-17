@@ -115,7 +115,7 @@ if not df_sessions.empty:
             
             tab0, tab1, tab2, tab3 = st.tabs([t["tab0"], t["tab1"], t["tab2"], t["tab3"]])
 
-            # --- ABA 0: INFO DA PROVA (COM TRAÇADO DINÂMICO) ---
+            # --- ABA 0: INFO DA PROVA ---
             with tab0:
                 col_stats, col_map = st.columns([1, 1])
                 
@@ -124,18 +124,28 @@ if not df_sessions.empty:
                 fastest_lap_driver = ""
                 
                 if not df_laps.empty:
-                    # Encontrar Vencedor
+                    # Forçar tipagem correta para garantir operações
+                    df_laps['lap_number'] = pd.to_numeric(df_laps['lap_number'], errors='coerce')
+                    df_laps['lap_duration'] = pd.to_numeric(df_laps['lap_duration'], errors='coerce')
+                    
+                    # CORREÇÃO: A coluna correta de timestamp na OpenF1 API é 'date'
                     max_lap = df_laps['lap_number'].max()
-                    last_laps = df_laps[df_laps['lap_number'] == max_lap].sort_values(by='date_end')
-                    if not last_laps.empty:
+                    last_laps = df_laps[df_laps['lap_number'] == max_lap]
+                    
+                    if not last_laps.empty and 'date' in last_laps.columns:
+                        last_laps = last_laps.sort_values(by='date')
+                        winner_num = last_laps.iloc[0]['driver_number']
+                        winner_name = df_drivers[df_drivers['driver_number'] == winner_num]['broadcast_name'].iloc[0]
+                    elif not last_laps.empty:
+                        # Fallback seguro caso 'date' falte em sessões específicas
                         winner_num = last_laps.iloc[0]['driver_number']
                         winner_name = df_drivers[df_drivers['driver_number'] == winner_num]['broadcast_name'].iloc[0]
                     
-                    # Encontrar Volta mais Rápida
+                    # Encontrar Volta mais Rápida de forma segura
                     df_valid_laps = df_laps.dropna(subset=['lap_duration']).sort_values(by='lap_duration')
                     if not df_valid_laps.empty:
                         fastest_lap_row = df_valid_laps.iloc[0]
-                        fastest_lap_time = f"{fastest_lap_row['lap_duration']}s"
+                        fastest_lap_time = f"{round(fastest_lap_row['lap_duration'], 3)}s"
                         fastest_lap_driver = df_drivers[df_drivers['driver_number'] == fastest_lap_row['driver_number']]['broadcast_name'].iloc[0]
 
                 with col_stats:
@@ -151,11 +161,8 @@ if not df_sessions.empty:
                     st.metric(t["total_km"], f"{round(length * laps_count, 2)} km")
                 
                 with col_map:
-                    # REGRA DINÂMICA DO MAPA: Padroniza o nome do circuito para buscar a imagem oficial do mapa da F1
                     circuit_raw_name = session_info['circuit_short_name'].replace(" ", "_")
                     map_url = f"https://www.formula1.com/content/dam/fom-website/manual/Misc/2024-Master-Circuit-Maps/{circuit_raw_name}.png"
-                    
-                    # Tenta carregar a imagem, se a F1 mudar o padrão de URL, ele não quebra e exibe um fallback
                     try:
                         st.image(map_url, caption=f"Circuit Layout: {session_info['circuit_short_name']}", use_container_width=True)
                     except:
@@ -165,8 +172,6 @@ if not df_sessions.empty:
             with tab1:
                 if not df_laps.empty:
                     df_pace = df_laps[df_laps['driver_number'].isin(sel_nums)].copy()
-                    df_pace['lap_number'] = pd.to_numeric(df_pace['lap_number'], errors='coerce')
-                    df_pace['lap_duration'] = pd.to_numeric(df_pace['lap_duration'], errors='coerce')
                     df_pace = df_pace[df_pace['is_pit_out_lap'] == False].dropna(subset=['lap_duration', 'lap_number'])
                     df_pace = df_pace.merge(df_drivers[['driver_number', 'broadcast_name']], on='driver_number', how='left')
                     
