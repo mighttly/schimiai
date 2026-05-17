@@ -22,8 +22,7 @@ The project's name is a tribute to Hannah Schmitz, the Principal Strategy Engine
 Using the OpenF1 API, SchimiAI ingests historical timing data, processes it using pandas to isolate true performance from race noise, and renders dynamic visualizations using plotly inside a streamlit web interface.
 
 🚀 Live Demo
-
-🔗 Click here to access the Live Application (Replace this with your actual Streamlit Cloud link once deployed)
+🔗 **[Click here to access the Live Application](https://schimiai-livedemo.streamlit.app)**
 
 🧠 Key Data Insights & Methodology
 
@@ -87,9 +86,8 @@ O nome do projeto é uma homenagem a Hannah Schmitz, Engenheira Principal de Est
 
 Utilizando a OpenF1 API, o SchimiAI consome dados de tempos de volta, utiliza pandas para limpar os ruídos da corrida (como safety cars e paradas nos boxes) e renderiza visualizações dinâmicas através do plotly dentro de uma interface web ágil criada em streamlit.
 
-🚀 Demonstração Ao Vivo
-
-🔗 Clique aqui para aceder à Aplicação em Produção (Substitui pelo teu link do Streamlit Cloud após o deploy)
+🚀 Live Demo
+🔗 **[Clique aqui para acessar a Aplicação em Produção](https://schimiai-livedemo.streamlit.app)**
 
 🧠 Principais Insights de Dados e Metodologia
 
