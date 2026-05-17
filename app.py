@@ -23,7 +23,6 @@ texts = {
         "select_drivers": "Pilotos:",
         "loading": "Processando dados...",
         "speed_analysis": "Análise de Velocidade Máxima",
-        "telemetry_title": "Comparativo de Volta Rápida (Telemetria)",
         "stint_title": "Histórico de Pneus (Stints)",
         "no_data": "Dados não disponíveis para esta seleção.",
         "error_api": "Conexão com a OpenF1 API falhou ou a sessão não possui dados limpos."
@@ -39,7 +38,6 @@ texts = {
         "select_drivers": "Drivers:",
         "loading": "Processing data...",
         "speed_analysis": "Top Speed Analysis",
-        "telemetry_title": "Fastest Lap Comparison (Telemetry)",
         "stint_title": "Tyre History (Stints)",
         "no_data": "Data not available for this selection.",
         "error_api": "Connection to OpenF1 API failed or the session has no clean data."
@@ -98,17 +96,23 @@ if not df_sessions.empty:
                 
                 if not df_laps.empty:
                     df_pace = df_laps[df_laps['driver_number'].isin(sel_nums)].copy()
-                    df_pace = df_pace[df_pace['is_pit_out_lap'] == False].dropna(subset=['lap_duration'])
+                    
+                    # Forçar conversão estrita para numérico para evitar o TypeError anterior
+                    df_pace['lap_number'] = pd.to_numeric(df_pace['lap_number'], errors='coerce')
+                    df_pace['lap_duration'] = pd.to_numeric(df_pace['lap_duration'], errors='coerce')
+                    
+                    df_pace = df_pace[df_pace['is_pit_out_lap'] == False].dropna(subset=['lap_duration', 'lap_number'])
                     df_pace = df_pace.merge(df_drivers[['driver_number', 'broadcast_name']], on='driver_number', how='left')
                     
                     if not df_pace.empty:
+                        # Criando gráfico de linha simples e limpo (sem a dependência do trendline="lowess" que quebrava)
                         fig_pace = px.line(
-                            df_pace, 
+                            df_pace.sort_values(by='lap_number'), 
                             x="lap_number", 
                             y="lap_duration", 
                             color="broadcast_name", 
-                            title="Race Pace Evolution (LOWESS)", 
-                            trendline="lowess",
+                            title="Race Pace Evolution",
+                            labels={"lap_number": "Lap / Volta", "lap_duration": "Time / Tempo (s)", "broadcast_name": "Driver / Piloto"},
                             template="plotly_dark"
                         )
                         fig_pace.update_yaxes(autorange="reversed")
@@ -160,11 +164,14 @@ if not df_sessions.empty:
                                 df_car = get_data("car_data", {"session_key": sk, "driver_number": num})
                             
                             if not df_car.empty:
-                                st.metric(f"{name} - Top Speed", f"{df_car['speed'].max()} km/h")
+                                # Forçar tipos numéricos corretos
+                                df_car['speed'] = pd.to_numeric(df_car['speed'], errors='coerce')
+                                max_speed = df_car['speed'].max()
                                 
-                                # Gráfico com amostragem reduzia (iloc) para otimizar performance
+                                st.metric(f"{name} - Top Speed", f"{max_speed} km/h")
+                                
                                 fig_speed = px.area(
-                                    df_car.iloc[::30], 
+                                    df_car.iloc[::40].dropna(subset=['speed']), 
                                     y="speed", 
                                     title=f"Speed Trace: {name}", 
                                     template="plotly_dark", 
