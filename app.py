@@ -68,6 +68,14 @@ track_meta = {
     "Sao Paulo": 4.309, "Las Vegas": 6.201, "Lusail": 5.419, "Abu Dhabi": 5.281
 }
 
+# --- FUNÇÃO AUXILIAR DE FORMATAÇÃO DE TEMPO ---
+def format_lap_time(seconds):
+    if pd.isna(seconds) or seconds <= 0:
+        return "-"
+    minutes = int(seconds // 60)
+    rem_seconds = seconds % 60
+    return f"{minutes:02d}:{rem_seconds:06.3f}"[:-1]
+
 # --- FUNÇÕES DE API ---
 @st.cache_data(show_spinner=False)
 def get_data(endpoint, params=None):
@@ -96,8 +104,10 @@ if not df_sessions.empty:
         df_drivers = get_data("drivers", {"session_key": sk})
         df_laps = get_data("laps", {"session_key": sk})
 
-    if not df_drivers.empty:
-        driver_map = dict(zip(df_drivers['broadcast_name'], df_drivers['driver_number']))
+    if not df_drivers.empty and not df_laps.empty:
+        # MODIFICAÇÃO: Utilizando full_name para exibição completa do nome do piloto
+        df_drivers['full_name'] = df_drivers['full_name'].fillna(df_drivers['broadcast_name'])
+        driver_map = dict(zip(df_drivers['full_name'], df_drivers['driver_number']))
         selected_driver_names = sorted(list(driver_map.keys()))
         
         sel_drivers = st.sidebar.multiselect(
@@ -121,48 +131,47 @@ if not df_sessions.empty:
                 
                 winner_name = t["no_data"]
                 fastest_lap_time = t["no_data"]
-                fastest_lap_driver = ""
                 
-                if not df_laps.empty:
-                    # Forçar tipagem correta para garantir operações
-                    df_laps['lap_number'] = pd.to_numeric(df_laps['lap_number'], errors='coerce')
-                    df_laps['lap_duration'] = pd.to_numeric(df_laps['lap_duration'], errors='coerce')
-                    
-                    # CORREÇÃO: A coluna correta de timestamp na OpenF1 API é 'date'
-                    max_lap = df_laps['lap_number'].max()
-                    last_laps = df_laps[df_laps['lap_number'] == max_lap]
-                    
-                    if not last_laps.empty and 'date' in last_laps.columns:
+                # Forçar tipagem correta
+                df_laps['lap_number'] = pd.to_numeric(df_laps['lap_number'], errors='coerce')
+                df_laps['lap_duration'] = pd.to_numeric(df_laps['lap_duration'], errors='coerce')
+                
+                max_lap = df_laps['lap_number'].max()
+                last_laps = df_laps[df_laps['lap_number'] == max_lap]
+                
+                if not last_laps.empty:
+                    if 'date' in last_laps.columns:
                         last_laps = last_laps.sort_values(by='date')
-                        winner_num = last_laps.iloc[0]['driver_number']
-                        winner_name = df_drivers[df_drivers['driver_number'] == winner_num]['broadcast_name'].iloc[0]
-                    elif not last_laps.empty:
-                        # Fallback seguro caso 'date' falte em sessões específicas
-                        winner_num = last_laps.iloc[0]['driver_number']
-                        winner_name = df_drivers[df_drivers['driver_number'] == winner_num]['broadcast_name'].iloc[0]
-                    
-                    # Encontrar Volta mais Rápida de forma segura
-                    df_valid_laps = df_laps.dropna(subset=['lap_duration']).sort_values(by='lap_duration')
-                    if not df_valid_laps.empty:
-                        fastest_lap_row = df_valid_laps.iloc[0]
-                        fastest_lap_time = f"{round(fastest_lap_row['lap_duration'], 3)}s"
-                        fastest_lap_driver = df_drivers[df_drivers['driver_number'] == fastest_lap_row['driver_number']]['broadcast_name'].iloc[0]
+                    winner_num = last_laps.iloc[0]['driver_number']
+                    winner_name = df_drivers[df_drivers['driver_number'] == winner_num]['full_name'].iloc[0]
+                
+                df_valid_laps = df_laps.dropna(subset=['lap_duration']).sort_values(by='lap_duration')
+                if not df_valid_laps.empty:
+                    fastest_lap_row = df_valid_laps.iloc[0]
+                    # MODIFICAÇÃO: Exibição no formato MM:SS.mmm para a volta mais rápida
+                    fastest_lap_time = format_lap_time(fastest_lap_row['lap_duration'])
+                    fastest_lap_driver = df_drivers[df_drivers['driver_number'] == fastest_lap_row['driver_number']]['full_name'].iloc[0]
+                    fastest_lap_str = f"{fastest_lap_time} ({fastest_lap_driver})"
+                else:
+                    fastest_lap_str = t["no_data"]
 
                 with col_stats:
                     st.metric(t["race_winner"], winner_name)
-                    st.metric(t["fastest_lap"], f"{fastest_lap_time} ({fastest_lap_driver})" if fastest_lap_driver else fastest_lap_time)
+                    st.metric(t["fastest_lap"], fastest_lap_str)
                     st.metric(t["circuit_name"], session_info['circuit_short_name'])
                     st.metric(t["location"], f"{session_info['location']}, {session_info['country_name']}")
                     
                     loc = session_info['location']
                     length = track_meta.get(loc, 5.0)
-                    laps_count = df_laps['lap_number'].max() if not df_laps.empty else 0
+                    laps_count = max_lap if pd.notna(max_lap) else 0
                     st.metric(t["track_length"], f"{length} km")
                     st.metric(t["total_km"], f"{round(length * laps_count, 2)} km")
                 
                 with col_map:
-                    circuit_raw_name = session_info['circuit_short_name'].replace(" ", "_")
-                    map_url = f"https://www.formula1.com/content/dam/fom-website/manual/Misc/2024-Master-Circuit-Maps/{circuit_raw_name}.png"
+                    # CORREÇÃO DA IMAGEM: Sanatização robusta de strings para a URL oficial da F1
+                    circuit_raw_name = session_info['circuit_short_name'].replace(" ", "_").replace(".", "").strip()
+                    map_url = f"https://media.formula1.com/image/upload/f_auto,q_auto/content/dam/fom-website/2018-redesign-assets/circuit-maps/16x9/{circuit_raw_name}.png"
+                    
                     try:
                         st.image(map_url, caption=f"Circuit Layout: {session_info['circuit_short_name']}", use_container_width=True)
                     except:
@@ -170,25 +179,26 @@ if not df_sessions.empty:
 
             # --- ABA 1: RITMO & PNEUS ---
             with tab1:
-                if not df_laps.empty:
-                    df_pace = df_laps[df_laps['driver_number'].isin(sel_nums)].copy()
-                    df_pace = df_pace[df_pace['is_pit_out_lap'] == False].dropna(subset=['lap_duration', 'lap_number'])
-                    df_pace = df_pace.merge(df_drivers[['driver_number', 'broadcast_name']], on='driver_number', how='left')
+                df_pace = df_laps[df_laps['driver_number'].isin(sel_nums)].copy()
+                df_pace = df_pace[df_pace['is_pit_out_lap'] == False].dropna(subset=['lap_duration', 'lap_number'])
+                df_pace = df_pace.merge(df_drivers[['driver_number', 'full_name']], on='driver_number', how='left')
+                
+                if not df_pace.empty:
+                    # MODIFICAÇÃO: Criação da coluna de texto com formato F1 oficial para exibição no Hover
+                    df_pace['lap_time_formatted'] = df_pace['lap_duration'].apply(format_lap_time)
                     
-                    if not df_pace.empty:
-                        fig_pace = px.line(
-                            df_pace.sort_values(by='lap_number'), 
-                            x="lap_number", 
-                            y="lap_duration", 
-                            color="broadcast_name", 
-                            title="Race Pace Evolution",
-                            labels={"lap_number": "Lap / Volta", "lap_duration": "Time / Tempo (s)", "broadcast_name": "Driver / Piloto"},
-                            template="plotly_dark"
-                        )
-                        fig_pace.update_yaxes(autorange="reversed")
-                        st.plotly_chart(fig_pace, use_container_width=True)
-                    else:
-                        st.info(t["no_data"])
+                    fig_pace = px.line(
+                        df_pace.sort_values(by='lap_number'), 
+                        x="lap_number", 
+                        y="lap_duration", 
+                        color="full_name", 
+                        title="Race Pace Evolution",
+                        labels={"lap_number": "Lap / Volta", "lap_duration": "Seconds / Segundos", "full_name": "Driver / Piloto"},
+                        hover_data={"lap_duration": ":.3f", "lap_time_formatted": True},
+                        template="plotly_dark"
+                    )
+                    fig_pace.update_yaxes(autorange="reversed")
+                    st.plotly_chart(fig_pace, use_container_width=True)
                 else:
                     st.info(t["no_data"])
 
@@ -200,7 +210,7 @@ if not df_sessions.empty:
                 
                 if not df_stints.empty:
                     df_stints_sel = df_stints[df_stints['driver_number'].isin(sel_nums)].copy()
-                    df_stints_sel = df_stints_sel.merge(df_drivers[['driver_number', 'broadcast_name']], on='driver_number', how='left')
+                    df_stints_sel = df_stints_sel.merge(df_drivers[['driver_number', 'full_name']], on='driver_number', how='left')
                     
                     if not df_stints_sel.empty:
                         df_stints_sel['lap_start'] = pd.to_numeric(df_stints_sel['lap_start'], errors='coerce')
@@ -215,7 +225,7 @@ if not df_sessions.empty:
                             y="stint_length", 
                             color="compound",
                             barmode="group", 
-                            facet_col="broadcast_name",
+                            facet_col="full_name",
                             color_discrete_map=compound_colors, 
                             labels={"stint_number": "Stint", "stint_length": "Laps Driven / Voltas Completadas", "compound": "Compound / Pneu"},
                             template="plotly_dark"
@@ -262,3 +272,4 @@ if not df_sessions.empty:
         st.error(t["error_api"])
 else:
     st.error(t["error_api"])
+
