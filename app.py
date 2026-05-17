@@ -57,8 +57,6 @@ def get_data(endpoint, params=None):
 
 # --- SIDEBAR: SELEÇÃO DE SESSÃO ---
 st.sidebar.title("🛠️ Settings")
-
-# Modificado para incluir 2025 e 2026 na lista de seleção
 year = st.sidebar.selectbox(t["select_year"], [2026, 2025, 2024, 2023])
 
 with st.spinner(t["loading"]):
@@ -122,7 +120,7 @@ if not df_sessions.empty:
                 else:
                     st.info(t["no_data"])
 
-            # --- ABA 2: ESTRATÉGIA DE BOX (Stints) ---
+            # --- ABA 2: ESTRATÉGIA DE BOX (Stints - CORRIGIDO) ---
             with tab2:
                 st.subheader(t["stint_title"])
                 with st.spinner(t["loading"]):
@@ -133,16 +131,24 @@ if not df_sessions.empty:
                     df_stints_sel = df_stints_sel.merge(df_drivers[['driver_number', 'broadcast_name']], on='driver_number', how='left')
                     
                     if not df_stints_sel.empty:
+                        # Forçar tipos numéricos corretos para o cálculo matemático
+                        df_stints_sel['lap_start'] = pd.to_numeric(df_stints_sel['lap_start'], errors='coerce')
+                        df_stints_sel['lap_end'] = pd.to_numeric(df_stints_sel['lap_end'], errors='coerce')
+                        
+                        # Cálculo do tamanho real do Stint (Duração em voltas)
+                        df_stints_sel['stint_length'] = df_stints_sel['lap_end'] - df_stints_sel['lap_start'] + 1
+                        
                         compound_colors = {"SOFT": "red", "MEDIUM": "yellow", "HARD": "white", "INTERMEDIATE": "green", "WET": "blue"}
                         
                         fig_stint = px.bar(
-                            df_stints_sel, 
+                            df_stints_sel.dropna(subset=['stint_length']), 
                             x="stint_number", 
-                            y="tyre_age_at_start", 
+                            y="stint_length", 
                             color="compound",
                             barmode="group", 
                             facet_col="broadcast_name",
                             color_discrete_map=compound_colors, 
+                            labels={"stint_number": "Stint", "stint_length": "Laps Driven / Voltas Completadas", "compound": "Compound / Pneu"},
                             template="plotly_dark"
                         )
                         st.plotly_chart(fig_stint, use_container_width=True)
