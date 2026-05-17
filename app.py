@@ -107,6 +107,7 @@ if not df_sessions.empty:
         df_laps = get_data("laps", {"session_key": sk})
 
     if not df_drivers.empty and not df_laps.empty:
+        # Preenchimento de nomes nulos de pilotos usando o nome de transmissão de fallback
         df_drivers['full_name'] = df_drivers['full_name'].fillna(df_drivers['broadcast_name'])
         driver_map = dict(zip(df_drivers['full_name'], df_drivers['driver_number']))
         selected_driver_names = sorted(list(driver_map.keys()))
@@ -124,6 +125,7 @@ if not df_sessions.empty:
             st.title(t["title"])
             st.markdown(t["subtitle"])
             
+            # Criação explícita de todas as abas
             tab0, tab1, tab2, tab3 = st.tabs([t["tab0"], t["tab1"], t["tab2"], t["tab3"]])
 
             # --- ABA 0: INFO DA PROVA ---
@@ -168,120 +170,134 @@ if not df_sessions.empty:
                 
                 with col_map:
                     st.subheader(t["circuit_layout_title"])
-                    # GERAÇÃO DO MAPA VIA GPS: Puxamos uma amostra de localização de um dos pilotos selecionados
-                    with st.spinner(t["loading"]):
-                        df_loc = get_data("location", {"session_key": sk, "driver_number": sel_nums[0]})
-                    
-                    if not df_loc.empty and 'x' in df_loc.columns and 'y' in df_loc.columns:
-                        df_loc['x'] = pd.to_numeric(df_loc['x'], errors='coerce')
-                        df_loc['y'] = pd.to_numeric(df_loc['y'], errors='coerce')
-                        df_track = df_loc.iloc[::20].dropna(subset=['x', 'y']) # Downsampling para performance
+                    # GERAÇÃO DO MAPA VIA GPS PROTEGIDA CONTRA QUEBRAS (TRY/EXCEPT)
+                    try:
+                        with st.spinner(t["loading"]):
+                            df_loc = get_data("location", {"session_key": sk, "driver_number": sel_nums[0]})
                         
-                        # Criando o mapa nativo usando gráfico de linha contínuo espacial
-                        fig_map = px.line(
-                            df_track, x="x", y="y",
-                            template="plotly_dark",
-                            color_discrete_sequence=['#deff9a']
-                        )
-                        fig_map.update_traces(line=dict(width=4))
-                        fig_map.update_layout(
-                            xaxis=dict(visible=False, showgrid=False, zeroline=False),
-                            yaxis=dict(visible=False, showgrid=False, zeroline=False, scaleanchor="x", scaleratio=1),
-                            margin=dict(l=10, r=10, t=10, b=10),
-                            height=400,
-                            showlegend=False
-                        )
-                        st.plotly_chart(fig_map, use_container_width=True)
-                    else:
+                        if not df_loc.empty and 'x' in df_loc.columns and 'y' in df_loc.columns:
+                            df_loc['x'] = pd.to_numeric(df_loc['x'], errors='coerce')
+                            df_loc['y'] = pd.to_numeric(df_loc['y'], errors='coerce')
+                            df_track = df_loc.iloc[::20].dropna(subset=['x', 'y'])
+                            
+                            if len(df_track) > 1:
+                                fig_map = px.line(
+                                    df_track, x="x", y="y",
+                                    template="plotly_dark",
+                                    color_discrete_sequence=['#deff9a']
+                                )
+                                fig_map.update_traces(line=dict(width=4))
+                                fig_map.update_layout(
+                                    xaxis=dict(visible=False, showgrid=False, zeroline=False),
+                                    yaxis=dict(visible=False, showgrid=False, zeroline=False, scaleanchor="x", scaleratio=1),
+                                    margin=dict(l=10, r=10, t=10, b=10),
+                                    height=400,
+                                    showlegend=False
+                                )
+                                st.plotly_chart(fig_map, use_container_width=True)
+                            else:
+                                st.info("GPS track layout data preview currently unavailable for this session.")
+                        else:
+                            st.info("GPS track layout data preview currently unavailable for this session.")
+                    except Exception as e:
+                        # Se houver qualquer falha de processamento, o app continua executando
                         st.info("GPS track layout data preview currently unavailable for this session.")
 
             # --- ABA 1: RITMO & PNEUS ---
             with tab1:
-                df_pace = df_laps[df_laps['driver_number'].isin(sel_nums)].copy()
-                df_pace = df_pace[df_pace['is_pit_out_lap'] == False].dropna(subset=['lap_duration', 'lap_number'])
-                df_pace = df_pace.merge(df_drivers[['driver_number', 'full_name']], on='driver_number', how='left')
-                
-                if not df_pace.empty:
-                    df_pace['lap_time_formatted'] = df_pace['lap_duration'].apply(format_lap_time)
+                try:
+                    df_pace = df_laps[df_laps['driver_number'].isin(sel_nums)].copy()
+                    df_pace = df_pace[df_pace['is_pit_out_lap'] == False].dropna(subset=['lap_duration', 'lap_number'])
+                    df_pace = df_pace.merge(df_drivers[['driver_number', 'full_name']], on='driver_number', how='left')
                     
-                    fig_pace = px.line(
-                        df_pace.sort_values(by='lap_number'), 
-                        x="lap_number", 
-                        y="lap_duration", 
-                        color="full_name", 
-                        title="Race Pace Evolution",
-                        labels={"lap_number": "Lap / Volta", "lap_duration": "Seconds / Segundos", "full_name": "Driver / Piloto"},
-                        hover_data={"lap_duration": ":.3f", "lap_time_formatted": True},
-                        template="plotly_dark"
-                    )
-                    fig_pace.update_yaxes(autorange="reversed")
-                    st.plotly_chart(fig_pace, use_container_width=True)
-                else:
+                    if not df_pace.empty:
+                        df_pace['lap_time_formatted'] = df_pace['lap_duration'].apply(format_lap_time)
+                        
+                        fig_pace = px.line(
+                            df_pace.sort_values(by='lap_number'), 
+                            x="lap_number", 
+                            y="lap_duration", 
+                            color="full_name", 
+                            title="Race Pace Evolution",
+                            labels={"lap_number": "Lap / Volta", "lap_duration": "Seconds / Segundos", "full_name": "Driver / Piloto"},
+                            hover_data={"lap_duration": ":.3f", "lap_time_formatted": True},
+                            template="plotly_dark"
+                        )
+                        fig_pace.update_yaxes(autorange="reversed")
+                        st.plotly_chart(fig_pace, use_container_width=True)
+                    else:
+                        st.info(t["no_data"])
+                except Exception as e:
                     st.info(t["no_data"])
 
             # --- ABA 2: ESTRATÉGIA DE BOX (Stints) ---
             with tab2:
                 st.subheader(t["stint_title"])
-                with st.spinner(t["loading"]):
-                    df_stints = get_data("stints", {"session_key": sk})
-                
-                if not df_stints.empty:
-                    df_stints_sel = df_stints[df_stints['driver_number'].isin(sel_nums)].copy()
-                    df_stints_sel = df_stints_sel.merge(df_drivers[['driver_number', 'full_name']], on='driver_number', how='left')
+                try:
+                    with st.spinner(t["loading"]):
+                        df_stints = get_data("stints", {"session_key": sk})
                     
-                    if not df_stints_sel.empty:
-                        df_stints_sel['lap_start'] = pd.to_numeric(df_stints_sel['lap_start'], errors='coerce')
-                        df_stints_sel['lap_end'] = pd.to_numeric(df_stints_sel['lap_end'], errors='coerce')
-                        df_stints_sel['stint_length'] = df_stints_sel['lap_end'] - df_stints_sel['lap_start'] + 1
+                    if not df_stints.empty:
+                        df_stints_sel = df_stints[df_stints['driver_number'].isin(sel_nums)].copy()
+                        df_stints_sel = df_stints_sel.merge(df_drivers[['driver_number', 'full_name']], on='driver_number', how='left')
                         
-                        compound_colors = {"SOFT": "red", "MEDIUM": "yellow", "HARD": "white", "INTERMEDIATE": "green", "WET": "blue"}
-                        
-                        fig_stint = px.bar(
-                            df_stints_sel.dropna(subset=['stint_length']), 
-                            x="stint_number", 
-                            y="stint_length", 
-                            color="compound",
-                            barmode="group", 
-                            facet_col="full_name",
-                            color_discrete_map=compound_colors, 
-                            labels={"stint_number": "Stint", "stint_length": "Laps Driven / Voltas Completadas", "compound": "Compound / Pneu"},
-                            template="plotly_dark"
-                        )
-                        st.plotly_chart(fig_stint, use_container_width=True)
+                        if not df_stints_sel.empty:
+                            df_stints_sel['lap_start'] = pd.to_numeric(df_stints_sel['lap_start'], errors='coerce')
+                            df_stints_sel['lap_end'] = pd.to_numeric(df_stints_sel['lap_end'], errors='coerce')
+                            df_stints_sel['stint_length'] = df_stints_sel['lap_end'] - df_stints_sel['lap_start'] + 1
+                            
+                            compound_colors = {"SOFT": "red", "MEDIUM": "yellow", "HARD": "white", "INTERMEDIATE": "green", "WET": "blue"}
+                            
+                            fig_stint = px.bar(
+                                df_stints_sel.dropna(subset=['stint_length']), 
+                                x="stint_number", 
+                                y="stint_length", 
+                                color="compound",
+                                barmode="group", 
+                                facet_col="full_name",
+                                color_discrete_map=compound_colors, 
+                                labels={"stint_number": "Stint", "stint_length": "Laps Driven / Voltas Completadas", "compound": "Compound / Pneu"},
+                                template="plotly_dark"
+                            )
+                            st.plotly_chart(fig_stint, use_container_width=True)
+                        else:
+                            st.info(t["no_data"])
                     else:
                         st.info(t["no_data"])
-                else:
+                except Exception as e:
                     st.info(t["no_data"])
 
             # --- ABA 3: TELEMETRIA REAL ---
             with tab3:
                 st.subheader(t["speed_analysis"])
-                
-                if len(sel_nums) >= 1:
-                    cols = st.columns(len(sel_nums))
-                    for i, num in enumerate(sel_nums):
-                        with cols[i]:
-                            name = [k for k, v in driver_map.items() if v == num][0]
-                            with st.spinner(f"{t['loading']} ({name})"):
-                                df_car = get_data("car_data", {"session_key": sk, "driver_number": num})
-                            
-                            if not df_car.empty:
-                                df_car['speed'] = pd.to_numeric(df_car['speed'], errors='coerce')
-                                max_speed = df_car['speed'].max()
+                try:
+                    if len(sel_nums) >= 1:
+                        cols = st.columns(len(sel_nums))
+                        for i, num in enumerate(sel_nums):
+                            with cols[i]:
+                                name = [k for k, v in driver_map.items() if v == num][0]
+                                with st.spinner(f"{t['loading']} ({name})"):
+                                    df_car = get_data("car_data", {"session_key": sk, "driver_number": num})
                                 
-                                st.metric(f"{name} - Top Speed", f"{max_speed} km/h")
-                                
-                                fig_speed = px.area(
-                                    df_car.iloc[::40].dropna(subset=['speed']), 
-                                    y="speed", 
-                                    title=f"Speed Trace: {name}", 
-                                    template="plotly_dark", 
-                                    color_discrete_sequence=['#deff9a']
-                                )
-                                st.plotly_chart(fig_speed, use_container_width=True)
-                            else:
-                                st.info(f"{name}: {t['no_data']}")
-                else:
+                                if not df_car.empty:
+                                    df_car['speed'] = pd.to_numeric(df_car['speed'], errors='coerce')
+                                    max_speed = df_car['speed'].max()
+                                    
+                                    st.metric(f"{name} - Top Speed", f"{max_speed} km/h")
+                                    
+                                    fig_speed = px.area(
+                                        df_car.iloc[::40].dropna(subset=['speed']), 
+                                        y="speed", 
+                                        title=f"Speed Trace: {name}", 
+                                        template="plotly_dark", 
+                                        color_discrete_sequence=['#deff9a']
+                                    )
+                                    st.plotly_chart(fig_speed, use_container_width=True)
+                                else:
+                                    st.info(f"{name}: {t['no_data']}")
+                    else:
+                        st.info(t["no_data"])
+                except Exception as e:
                     st.info(t["no_data"])
         else:
             st.info("Selecione os pilotos na barra lateral / Select drivers in the sidebar.")
