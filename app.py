@@ -15,6 +15,7 @@ texts = {
     "Português": {
         "title": "🏎️ SchimiAI 2.0: Strategy & Telemetry Hub",
         "subtitle": "Análise avançada inspirada na engenharia de estratégia de Hannah Schmitz.",
+        "tab0": "🏠 Info da Prova",
         "tab1": "📊 Ritmo & Pneus",
         "tab2": "🏁 Estratégia de Box",
         "tab3": "⚡ Telemetria Real",
@@ -22,14 +23,21 @@ texts = {
         "select_gp": "Grande Prêmio:",
         "select_drivers": "Pilotos:",
         "loading": "Processando dados...",
-        "speed_analysis": "Análise de Velocidade Máxima",
+        "race_winner": "Vencedor da Prova",
+        "fastest_lap": "Volta mais Rápida",
+        "circuit_name": "Circuito",
+        "location": "Localização",
+        "track_length": "Comprimento da Pista",
+        "total_km": "Distância Total",
         "stint_title": "Histórico de Pneus (Stints)",
-        "no_data": "Dados não disponíveis para esta seleção.",
+        "speed_analysis": "Análise de Velocidade Máxima",
+        "no_data": "Dados não disponíveis.",
         "error_api": "Conexão com a OpenF1 API falhou ou a sessão não possui dados limpos."
     },
     "English": {
         "title": "🏎️ SchimiAI 2.0: Strategy & Telemetry Hub",
         "subtitle": "Advanced analytics inspired by Hannah Schmitz's strategy engineering.",
+        "tab0": "🏠 Race Info",
         "tab1": "📊 Pace & Tyres",
         "tab2": "🏁 Pit Strategy",
         "tab3": "⚡ Real Telemetry",
@@ -37,13 +45,28 @@ texts = {
         "select_gp": "Grand Prix:",
         "select_drivers": "Drivers:",
         "loading": "Processing data...",
-        "speed_analysis": "Top Speed Analysis",
+        "race_winner": "Race Winner",
+        "fastest_lap": "Fastest Lap",
+        "circuit_name": "Circuit",
+        "location": "Location",
+        "track_length": "Track Length",
+        "total_km": "Total Distance",
         "stint_title": "Tyre History (Stints)",
-        "no_data": "Data not available for this selection.",
+        "speed_analysis": "Top Speed Analysis",
+        "no_data": "Data not available.",
         "error_api": "Connection to OpenF1 API failed or the session has no clean data."
     }
 }
 t = texts[language]
+
+# --- METADADOS DAS PISTAS (Distâncias Oficiais em KM) ---
+track_meta = {
+    "Bahrain": 5.412, "Jeddah": 6.174, "Melbourne": 5.278, "Suzuka": 5.807, "Shanghai": 5.451,
+    "Miami": 5.412, "Imola": 4.909, "Monaco": 3.337, "Montreal": 4.361, "Barcelona": 4.657,
+    "Spielberg": 4.318, "Silverstone": 5.891, "Budapest": 4.381, "Spa": 7.004, "Zandvoort": 4.259,
+    "Monza": 5.793, "Baku": 6.003, "Singapore": 4.940, "Austin": 5.513, "Mexico City": 4.304,
+    "Sao Paulo": 4.309, "Las Vegas": 6.201, "Lusail": 5.419, "Abu Dhabi": 5.281
+}
 
 # --- FUNÇÕES DE API ---
 @st.cache_data(show_spinner=False)
@@ -55,7 +78,7 @@ def get_data(endpoint, params=None):
     except:
         return pd.DataFrame()
 
-# --- SIDEBAR: SELEÇÃO DE SESSÃO ---
+# --- SIDEBAR: FILTROS ---
 st.sidebar.title("🛠️ Settings")
 year = st.sidebar.selectbox(t["select_year"], [2026, 2025, 2024, 2023])
 
@@ -67,9 +90,12 @@ if not df_sessions.empty:
     session_map = df_sessions.set_index('session_key')['display'].to_dict()
     sk = st.sidebar.selectbox(t["select_gp"], options=list(session_map.keys()), format_func=lambda x: session_map[x])
     
+    session_info = df_sessions[df_sessions['session_key'] == sk].iloc[0]
+    
     with st.spinner(t["loading"]):
         df_drivers = get_data("drivers", {"session_key": sk})
-    
+        df_laps = get_data("laps", {"session_key": sk})
+
     if not df_drivers.empty:
         driver_map = dict(zip(df_drivers['broadcast_name'], df_drivers['driver_number']))
         selected_driver_names = sorted(list(driver_map.keys()))
@@ -87,19 +113,60 @@ if not df_sessions.empty:
             st.title(t["title"])
             st.markdown(t["subtitle"])
             
-            tab1, tab2, tab3 = st.tabs([t["tab1"], t["tab2"], t["tab3"]])
+            tab0, tab1, tab2, tab3 = st.tabs([t["tab0"], t["tab1"], t["tab2"], t["tab3"]])
+
+            # --- ABA 0: INFO DA PROVA (COM TRAÇADO DINÂMICO) ---
+            with tab0:
+                col_stats, col_map = st.columns([1, 1])
+                
+                winner_name = t["no_data"]
+                fastest_lap_time = t["no_data"]
+                fastest_lap_driver = ""
+                
+                if not df_laps.empty:
+                    # Encontrar Vencedor
+                    max_lap = df_laps['lap_number'].max()
+                    last_laps = df_laps[df_laps['lap_number'] == max_lap].sort_values(by='date_end')
+                    if not last_laps.empty:
+                        winner_num = last_laps.iloc[0]['driver_number']
+                        winner_name = df_drivers[df_drivers['driver_number'] == winner_num]['broadcast_name'].iloc[0]
+                    
+                    # Encontrar Volta mais Rápida
+                    df_valid_laps = df_laps.dropna(subset=['lap_duration']).sort_values(by='lap_duration')
+                    if not df_valid_laps.empty:
+                        fastest_lap_row = df_valid_laps.iloc[0]
+                        fastest_lap_time = f"{fastest_lap_row['lap_duration']}s"
+                        fastest_lap_driver = df_drivers[df_drivers['driver_number'] == fastest_lap_row['driver_number']]['broadcast_name'].iloc[0]
+
+                with col_stats:
+                    st.metric(t["race_winner"], winner_name)
+                    st.metric(t["fastest_lap"], f"{fastest_lap_time} ({fastest_lap_driver})" if fastest_lap_driver else fastest_lap_time)
+                    st.metric(t["circuit_name"], session_info['circuit_short_name'])
+                    st.metric(t["location"], f"{session_info['location']}, {session_info['country_name']}")
+                    
+                    loc = session_info['location']
+                    length = track_meta.get(loc, 5.0)
+                    laps_count = df_laps['lap_number'].max() if not df_laps.empty else 0
+                    st.metric(t["track_length"], f"{length} km")
+                    st.metric(t["total_km"], f"{round(length * laps_count, 2)} km")
+                
+                with col_map:
+                    # REGRA DINÂMICA DO MAPA: Padroniza o nome do circuito para buscar a imagem oficial do mapa da F1
+                    circuit_raw_name = session_info['circuit_short_name'].replace(" ", "_")
+                    map_url = f"https://www.formula1.com/content/dam/fom-website/manual/Misc/2024-Master-Circuit-Maps/{circuit_raw_name}.png"
+                    
+                    # Tenta carregar a imagem, se a F1 mudar o padrão de URL, ele não quebra e exibe um fallback
+                    try:
+                        st.image(map_url, caption=f"Circuit Layout: {session_info['circuit_short_name']}", use_container_width=True)
+                    except:
+                        st.info("Layout map preview currently unavailable for this circuit.")
 
             # --- ABA 1: RITMO & PNEUS ---
             with tab1:
-                with st.spinner(t["loading"]):
-                    df_laps = get_data("laps", {"session_key": sk})
-                
                 if not df_laps.empty:
                     df_pace = df_laps[df_laps['driver_number'].isin(sel_nums)].copy()
-                    
                     df_pace['lap_number'] = pd.to_numeric(df_pace['lap_number'], errors='coerce')
                     df_pace['lap_duration'] = pd.to_numeric(df_pace['lap_duration'], errors='coerce')
-                    
                     df_pace = df_pace[df_pace['is_pit_out_lap'] == False].dropna(subset=['lap_duration', 'lap_number'])
                     df_pace = df_pace.merge(df_drivers[['driver_number', 'broadcast_name']], on='driver_number', how='left')
                     
@@ -120,7 +187,7 @@ if not df_sessions.empty:
                 else:
                     st.info(t["no_data"])
 
-            # --- ABA 2: ESTRATÉGIA DE BOX (Stints - CORRIGIDO) ---
+            # --- ABA 2: ESTRATÉGIA DE BOX (Stints) ---
             with tab2:
                 st.subheader(t["stint_title"])
                 with st.spinner(t["loading"]):
@@ -131,11 +198,8 @@ if not df_sessions.empty:
                     df_stints_sel = df_stints_sel.merge(df_drivers[['driver_number', 'broadcast_name']], on='driver_number', how='left')
                     
                     if not df_stints_sel.empty:
-                        # Forçar tipos numéricos corretos para o cálculo matemático
                         df_stints_sel['lap_start'] = pd.to_numeric(df_stints_sel['lap_start'], errors='coerce')
                         df_stints_sel['lap_end'] = pd.to_numeric(df_stints_sel['lap_end'], errors='coerce')
-                        
-                        # Cálculo do tamanho real do Stint (Duração em voltas)
                         df_stints_sel['stint_length'] = df_stints_sel['lap_end'] - df_stints_sel['lap_start'] + 1
                         
                         compound_colors = {"SOFT": "red", "MEDIUM": "yellow", "HARD": "white", "INTERMEDIATE": "green", "WET": "blue"}
