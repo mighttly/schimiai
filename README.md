@@ -1,4 +1,4 @@
-🏎️ SchimiAI: F1 Race Pace & Strategy Analyst
+🏎️ SchimiAI 2.0: Race Strategy & Telemetry Hub
 
 <p align="center">
 <img src="https://img.shields.io/badge/Python-3.9+-blue.svg" alt="Python Version">
@@ -15,127 +15,110 @@
 
 [EN] Project Overview
 
-SchimiAI is an interactive data analysis web application designed to evaluate Formula 1 race pace, driver consistency, and tire degradation.
+SchimiAI 2.0 is an interactive, advanced data analytics dashboard designed to evaluate Formula 1 race pace, pit strategies, and high-frequency live telemetry.
 
-The project's name is a tribute to Hannah Schmitz, the Principal Strategy Engineer at Red Bull Racing, renowned for making split-second, race-winning decisions driven entirely by data and statistical models. Just as Hannah transforms raw telemetry into podium finishes, this app aims to transform open-source data into clear, actionable strategic insights.
+The project is named after Hannah Schmitz, the legendary Principal Strategy Engineer at Red Bull Racing. She is famous for turning raw timing data, GPS telemetry, and weather forecasts into split-second, race-winning decisions. This hub is built to reflect that same data-driven tactical approach.
 
-Using the OpenF1 API, SchimiAI ingests historical timing data, processes it using pandas to isolate true performance from race noise, and renders dynamic visualizations using plotly inside a streamlit web interface.
+By directly consuming the open-source OpenF1 API, this app processes massive streams of live race data and visualizes them across three main functional pillars using responsive, interactive widgets.
 
 🚀 Live Demo
-🔗 **[Click here to access the Live Application](https://schimiai-livedemo.streamlit.app)**
 
-🧠 Key Data Insights & Methodology
+🔗 Click here to access the Live Application
 
-To analyze performance like a real race strategist, the app applies specific data-wrangling and statistical rules:
+📊 Feature Pillars & Data Engineering
 
-• Outlier Removal (Data Cleaning): Automatically filters out pit-out laps (is_pit_out_lap) and uncompleted laps. This ensures pit stop overhead doesn't skew the driver's actual on-track pace.
+1. Race Pace & Tyre Degradation (Pace & Tyres)
 
-• Median Race Pace: Uses the Median instead of the Mean to measure core performance. In F1, a single yellow flag or a minor mistake creates a massive outlier (a very slow lap). The median is statistically robust against these anomalies.
+• Dynamic Outlier Removal: Filters out pit lane entries/exists and anomalous lap timings (is_pit_out_lap == False) to isolate the true raw pace of each driver.
 
-• Consistency Metric (Standard Deviation): Calculates the standard deviation of lap times. A lower standard deviation indicates a highly consistent driver who can replicate lap times perfectly—a crucial factor for undercut/overcut strategies.
+• Degradation Assessment: Implements responsive multi-driver line chart overlays to monitor exactly when a tyre compound starts dropping in performance ("hitting the cliff").
 
-• LOWESS Trend Analysis: Applies Local Regression lines over the lap scatter plots to visually track performance decline as tires degrade over a stint.
+2. Pit Strategy Analysis (Pit Strategy)
+
+• Strategic Window Calculations: Instead of using raw, uninformative tire age from the start of a stint, the application dynamically calculates the duration of every stint run by the drivers (stint_length = lap_end - lap_start + 1).
+
+• Visual Categorization: Leverages custom color mapping reflecting official FIA compound specifications (Soft 🟥, Medium 🟨, Hard ⬜, Intermediate 🟩, Wet 🟦) for high-impact visual storytelling.
+
+3. Real-Time Telemetry Performance (Real Telemetry)
+
+• Smart Downsampling: Live F1 telemetry stream data can run up to 3.7Hz, which can lag client-side rendering. The app implements dynamic vectorized Pandas slicing (iloc[::40]) to ensure ultra-fast plotting while retaining true peak speed points.
+
+• Top Speed Sourcing: Parses and casts raw telemetry streams on the fly to isolate peak speed metrics.
 
 🛠️ Tech Stack
 
-• Language: Python 3
+• Language: Python 3.10+
 
-• Data Manipulation: pandas
+• Framework: Streamlit (UI & Multi-tab navigation)
 
-• API Ingestion: requests
+• Data Processing: Pandas (Type casting, vectorized sampling, delta calculations)
 
-• Data Visualization: plotly & statsmodels (for trendlines)
+• API Ingestion: Requests (RESTful API interaction with @st.cache_data throttling layer)
 
-• Web Framework: streamlit
-
-📦 How to Run Locally (macOS / Linux / Windows)
-
-1. Clone the repository:
-
-[bash]
-git clone [https://github.com/mighttly/SchimiAI.git](https://github.com/mighttly/SchimiAI.git)
-cd SchimiAI
-
-
-2. Create and activate a virtual environment:
-
-[bash]
-python3 -m venv venv
-source venv/bin/activate  # On Windows use: venv\Scripts\activate
-
-
-3. Install the required dependencies:
-
-[bash]
-pip install -r requirements.txt
-
-
-4. Run the Streamlit application:
-
-[bash]
-streamlit run app.py
-
+• Visualization: Plotly Express (Dark-themed responsive graphs)
 
 <a name="pt"></a>
 
 [PT] Visão Geral do Projeto
 
-O SchimiAI é uma aplicação web interativa de análise de dados projetada para avaliar o ritmo de corrida, a consistência dos pilotos e a degradação dos pneus na Fórmula 1.
+O SchimiAI 2.0 é um painel interativo de análise avançada de dados de F1 projetado para avaliar o ritmo de corrida, estratégias de pit stop e telemetria ao vivo de alta frequência.
 
-O nome do projeto é uma homenagem a Hannah Schmitz, Engenheira Principal de Estratégia da Red Bull Racing, reconhecida globalmente por tomar decisões cruciais que definem vitórias baseando-se puramente em dados e modelos estatísticos. Assim como a Hannah transforma telemetria bruta em pódios, este app busca transformar dados públicos em insights estratégicos claros e acionáveis.
+O nome do projeto é um tributo a Hannah Schmitz, a Engenheira Principal de Estratégia da Red Bull Racing. Hannah é mundialmente conhecida por tomar decisões táticas em frações de segundo que definem vitórias, transformando dados brutos de tempo, telemetria e clima em pódios. Esse app foi desenvolvido para espelhar essa metodologia orientada a dados.
 
-Utilizando a OpenF1 API, o SchimiAI consome dados de tempos de volta, utiliza pandas para limpar os ruídos da corrida (como safety cars e paradas nos boxes) e renderiza visualizações dinâmicas através do plotly dentro de uma interface web ágil criada em streamlit.
+Consumindo dados diretamente da OpenF1 API (pública e de código aberto), a aplicação trata e renderiza fluxos pesados de informações da pista em três abas dinâmicas e interativas.
 
-🚀 Live Demo
-🔗 **[Clique aqui para acessar a Aplicação em Produção](https://schimiai-livedemo.streamlit.app)**
+🚀 Demonstração Ao Vivo
 
-🧠 Principais Insights de Dados e Metodologia
+🔗 Clique aqui para acessar a Aplicação em Produção
 
-Para analisar a performance como um estrategista de corrida real, a aplicação aplica regras específicas de tratamento de dados e estatística:
+📊 Pilares de Funcionalidades & Engenharia de Dados
 
-• Remoção de Outliers (Limpeza de Dados): Filtra automaticamente as voltas de saída de box (is_pit_out_lap) e voltas incompletas. Isso garante que o tempo gasto no pit lane não distorça o ritmo real do piloto na pista.
+1. Ritmo de Corrida & Desgaste de Pneus (Ritmo & Pneus)
 
-• Mediana do Ritmo de Corrida: Utiliza a Mediana em vez da Média para medir o desempenho central. Na F1, uma bandeira amarela ou um pequeno erro gera um outlier massivo (uma volta muito lenta). A mediana é estatisticamente robusta contra essas anomalias.
+• Remoção de Outliers: Filtra de forma inteligente voltas inválidas e tempos de entrada/saída de box (is_pit_out_lap == False), isolando a velocidade real de pista dos pilotos.
 
-• Métrica de Consistência (Desvio Padrão): Calcula o desvio padrão dos tempos de volta. Um desvio padrão menor indica um piloto altamente consistente que consegue replicar tempos de volta com precisão — fator crucial para estratégias de undercut e overcut.
+• Curva de Degradação: Gráficos de linhas interativos sobrepostos que auxiliam a identificar o momento exato em que a vida útil do composto acaba e o piloto perde rendimento.
 
-• Análise de Tendência LOWESS: Aplica linhas de Regressão Local sobre o gráfico de dispersão de voltas para acompanhar visualmente a perda de performance à medida que os pneus se desgastam ao longo de um stint.
+2. Análise de Estratégia de Paradas (Estratégia de Box)
+
+• Cálculo de Janelas Estratégicas: Substitui a exibição simplória da idade do pneu por um cálculo dinâmico da duração real de cada perna da corrida realizada pelo piloto (stint_length = lap_end - lap_start + 1).
+
+• Identidade Visual Oficial: Aplica paletas de cores correspondentes à regulamentação oficial de compostos da FIA (Soft 🟥, Medium 🟨, Hard ⬜, Intermediate 🟩, Wet 🟦).
+
+3. Telemetria em Tempo Real (Telemetria Real)
+
+• Tratamento de Alta Frequência (Downsampling): Os logs brutos de telemetria dos carros rodam a 3.7Hz, gerando lentidão no navegador. O app implementa amostragem via Pandas Slicing (iloc[::40]) para garantir uma renderização ágil sem perder as marcas de velocidade máxima real (Top Speed).
+
+• Velocidade Máxima Estrita: Faz o cast numérico dinâmico de telemetria bruta para encontrar picos de velocidade de reta.
 
 🛠️ Tecnologias Utilizadas
 
-• Linguagem: Python 3
+• Linguagem: Python 3.10+
 
-• Manipulação de Dados: pandas
+• Framework: Streamlit (UI e navegação por abas)
 
-• Consumo de API: requests
+• Engenharia de Dados: Pandas (Processamento, amostragem e cálculos de deltas)
 
-• Visualização de Dados: plotly e statsmodels (para as linhas de tendência)
+• Consumo de API: Requests (Chamadas REST com camada de cache inteligente @st.cache_data)
 
-• Framework Web: streamlit
+• Visualização: Plotly Express (Gráficos interativos integrados ao tema escuro)
 
-📦 Como Executar Localmente (macOS / Linux / Windows)
+📦 Run Locally / Como Executar Localmente
 
-1. Clone o repositório:
+1. Clone the repository / Clone o repositório:
 
 [bash]
 git clone [https://github.com/mighttly/SchimiAI.git](https://github.com/mighttly/SchimiAI.git)
 cd SchimiAI
 
 
-2. Crie e ative um ambiente virtual:
-
-[bash]
-python3 -m venv venv
-source venv/bin/activate  # No Windows usa: venv\Scripts\activate
-
-
-3. Install as dependências necessárias:
+2. Install requirements / Instale as dependências:
 
 [bash]
 pip install -r requirements.txt
 
 
-4. Execute a aplicação Streamlit:
+3. Run Streamlit / Execute o app:
 
 [bash]
 streamlit run app.py
