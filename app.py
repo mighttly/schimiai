@@ -7,14 +7,108 @@ import plotly.graph_objects as go
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="SchimiAI 2.0 - F1 Strategy Hub", layout="wide", page_icon="🏎️")
 
+# --- CUSTOM CSS (EMBELEZAMENTO NEON & GLASSMORPHISM) ---
+st.markdown("""
+<style>
+    /* Configuração de Fundo Geral */
+    .stApp {
+        background-color: #0b0f19;
+        color: #f8fafc;
+    }
+    
+    /* Título Principal com Glow */
+    .main-title {
+        font-family: 'Urbanist', sans-serif;
+        font-size: 3rem;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 5px;
+        text-shadow: 0 0 20px rgba(222, 255, 154, 0.2);
+    }
+    .main-title span {
+        color: #deff9a;
+        text-shadow: 0 0 15px rgba(222, 255, 154, 0.6);
+    }
+    
+    /* Estilização Premium dos Cards de Métrica (Streamlit) */
+    div[data-testid="stMetric"] {
+        background-color: rgba(30, 41, 59, 0.45) !important;
+        border: 1px solid rgba(222, 255, 154, 0.15) !important;
+        border-radius: 16px !important;
+        padding: 22px 24px !important;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    
+    /* Efeito de Hover nos Cards (Glow Neon) */
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-4px) !important;
+        border-color: rgba(222, 255, 154, 0.6) !important;
+        box-shadow: 0 12px 40px 0 rgba(222, 255, 154, 0.15) !important;
+    }
+    
+    /* Customização dos textos internos das métricas */
+    div[data-testid="stMetricValue"] > div {
+        font-family: 'Urbanist', sans-serif !important;
+        font-size: 1.85rem !important;
+        font-weight: 700 !important;
+        color: #deff9a !important;
+    }
+    div[data-testid="stMetricLabel"] > div > p {
+        font-family: 'Urbanist', sans-serif !important;
+        font-size: 0.85rem !important;
+        color: #94a3b8 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.08em !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Estilização F1 das Abas (Tabs) */
+    button[data-baseweb="tab"] {
+        font-family: 'Urbanist', sans-serif !important;
+        font-size: 1.05rem !important;
+        font-weight: 600 !important;
+        color: #64748b !important;
+        background-color: transparent !important;
+        border: none !important;
+        padding: 12px 24px !important;
+        transition: all 0.3s ease !important;
+    }
+    button[data-baseweb="tab"]:hover {
+        color: #f8fafc !important;
+    }
+    button[aria-selected="true"] {
+        color: #deff9a !important;
+        border-bottom: 3px solid #deff9a !important;
+    }
+    div[data-testid="stTabs"] {
+        border-bottom: 1px solid rgba(222, 255, 154, 0.1) !important;
+        margin-bottom: 25px !important;
+    }
+    
+    /* Barra Lateral Escura e Elegante */
+    section[data-testid="stSidebar"] {
+        background-color: #090d16 !important;
+        border-right: 1px solid rgba(222, 255, 154, 0.1) !important;
+    }
+    
+    /* Esconder bordas desnecessárias de containers */
+    div[data-testid="stVerticalBlock"] > div {
+        background-color: transparent;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # --- DICIONÁRIO DE TRADUÇÃO ---
 st.sidebar.header("🌐 Language / Idioma")
 language = st.sidebar.selectbox("Choose Language:", ["Português", "English"])
 
 texts = {
     "Português": {
-        "title": "🏎️ SchimiAI 2.0: Strategy & Telemetry Hub",
-        "subtitle": "Análise avançada inspirada na engenharia de estratégia de Hannah Schmitz.",
+        "title": "SchimiAI 2.0",
+        "subtitle": "Análise avançada de dados inspirada na engenharia de estratégia de Hannah Schmitz.",
         "tab0": "🏠 Info da Prova",
         "tab1": "📊 Ritmo & Pneus",
         "tab2": "🏁 Estratégia de Box",
@@ -22,21 +116,21 @@ texts = {
         "select_year": "Ano:",
         "select_gp": "Grande Prêmio:",
         "select_drivers": "Pilotos:",
-        "loading": "Processando dados...",
+        "loading": "Sincronizando dados de telemetria...",
         "race_winner": "Vencedor da Prova",
         "fastest_lap": "Volta mais Rápida",
         "circuit_name": "Circuito",
         "location": "Localização",
-        "track_length": "Comprimento da Pista",
-        "total_km": "Distância Total",
+        "track_length": "Extensão do Circuito",
+        "total_km": "Distância Total Percorrida",
         "stint_title": "Histórico de Pneus (Stints)",
         "speed_analysis": "Análise de Velocidade Máxima",
         "no_data": "Dados não disponíveis.",
-        "circuit_layout_title": "Traçado Dinâmico da Pista (Via Telemetria GPS)",
+        "circuit_layout_title": "Traçado Dinâmico (Via Telemetria GPS)",
         "error_api": "Conexão com a OpenF1 API falhou ou a sessão não possui dados limpos."
     },
     "English": {
-        "title": "🏎️ SchimiAI 2.0: Strategy & Telemetry Hub",
+        "title": "SchimiAI 2.0",
         "subtitle": "Advanced analytics inspired by Hannah Schmitz's strategy engineering.",
         "tab0": "🏠 Race Info",
         "tab1": "📊 Pace & Tyres",
@@ -45,13 +139,13 @@ texts = {
         "select_year": "Year:",
         "select_gp": "Grand Prix:",
         "select_drivers": "Drivers:",
-        "loading": "Processing data...",
+        "loading": "Syncing live telemetry streams...",
         "race_winner": "Race Winner",
         "fastest_lap": "Fastest Lap",
         "circuit_name": "Circuit",
         "location": "Location",
         "track_length": "Track Length",
-        "total_km": "Total Distance",
+        "total_km": "Total Distance Covered",
         "stint_title": "Tyre History (Stints)",
         "speed_analysis": "Top Speed Analysis",
         "no_data": "Data not available.",
@@ -107,7 +201,6 @@ if not df_sessions.empty:
         df_laps = get_data("laps", {"session_key": sk})
 
     if not df_drivers.empty and not df_laps.empty:
-        # Preenchimento de nomes nulos de pilotos usando o nome de transmissão de fallback
         df_drivers['full_name'] = df_drivers['full_name'].fillna(df_drivers['broadcast_name'])
         driver_map = dict(zip(df_drivers['full_name'], df_drivers['driver_number']))
         selected_driver_names = sorted(list(driver_map.keys()))
@@ -122,15 +215,15 @@ if not df_sessions.empty:
             sel_nums = [driver_map[d] for d in sel_drivers]
             
             # --- UI PRINCIPAL ---
-            st.title(t["title"])
-            st.markdown(t["subtitle"])
+            st.markdown(f'<h1 class="main-title">🏎️ {t["title"]}: <span>Telemetry Hub</span></h1>', unsafe_allow_html=True)
+            st.markdown(f'<p style="color: #94a3b8; font-size: 1.1rem; margin-bottom: 30px;">{t["subtitle"]}</p>', unsafe_allow_html=True)
             
-            # Criação explícita de todas as abas
+            # Criação de abas
             tab0, tab1, tab2, tab3 = st.tabs([t["tab0"], t["tab1"], t["tab2"], t["tab3"]])
 
             # --- ABA 0: INFO DA PROVA ---
             with tab0:
-                col_stats, col_map = st.columns([1, 1])
+                col_stats, col_map = st.columns([1, 1.2], gap="large")
                 
                 winner_name = t["no_data"]
                 fastest_lap_time = t["no_data"]
@@ -169,8 +262,7 @@ if not df_sessions.empty:
                     st.metric(t["total_km"], f"{round(length * laps_count, 2)} km")
                 
                 with col_map:
-                    st.subheader(t["circuit_layout_title"])
-                    # GERAÇÃO DO MAPA VIA GPS PROTEGIDA CONTRA QUEBRAS (TRY/EXCEPT)
+                    st.markdown(f'<h3 style="font-size: 1.3rem; font-weight: 700; color: #f8fafc; margin-bottom: 15px;">🏁 {t["circuit_layout_title"]}</h3>', unsafe_allow_html=True)
                     try:
                         with st.spinner(t["loading"]):
                             df_loc = get_data("location", {"session_key": sk, "driver_number": sel_nums[0]})
@@ -178,7 +270,7 @@ if not df_sessions.empty:
                         if not df_loc.empty and 'x' in df_loc.columns and 'y' in df_loc.columns:
                             df_loc['x'] = pd.to_numeric(df_loc['x'], errors='coerce')
                             df_loc['y'] = pd.to_numeric(df_loc['y'], errors='coerce')
-                            df_track = df_loc.iloc[::20].dropna(subset=['x', 'y'])
+                            df_track = df_loc.iloc[::25].dropna(subset=['x', 'y'])
                             
                             if len(df_track) > 1:
                                 fig_map = px.line(
@@ -186,22 +278,23 @@ if not df_sessions.empty:
                                     template="plotly_dark",
                                     color_discrete_sequence=['#deff9a']
                                 )
-                                fig_map.update_traces(line=dict(width=4))
+                                fig_map.update_traces(line=dict(width=5, color='#deff9a'))
                                 fig_map.update_layout(
                                     xaxis=dict(visible=False, showgrid=False, zeroline=False),
                                     yaxis=dict(visible=False, showgrid=False, zeroline=False, scaleanchor="x", scaleratio=1),
                                     margin=dict(l=10, r=10, t=10, b=10),
-                                    height=400,
-                                    showlegend=False
+                                    height=420,
+                                    showlegend=False,
+                                    paper_bgcolor='rgba(0,0,0,0)',
+                                    plot_bgcolor='rgba(0,0,0,0)'
                                 )
                                 st.plotly_chart(fig_map, use_container_width=True)
                             else:
-                                st.info("GPS track layout data preview currently unavailable for this session.")
+                                st.info("GPS track layout data preview currently unavailable.")
                         else:
-                            st.info("GPS track layout data preview currently unavailable for this session.")
+                            st.info("GPS track layout data preview currently unavailable.")
                     except Exception as e:
-                        # Se houver qualquer falha de processamento, o app continua executando
-                        st.info("GPS track layout data preview currently unavailable for this session.")
+                        st.info("GPS track layout data preview currently unavailable.")
 
             # --- ABA 1: RITMO & PNEUS ---
             with tab1:
@@ -218,12 +311,19 @@ if not df_sessions.empty:
                             x="lap_number", 
                             y="lap_duration", 
                             color="full_name", 
-                            title="Race Pace Evolution",
+                            title="Race Pace Consistency (Lower is Better)",
                             labels={"lap_number": "Lap / Volta", "lap_duration": "Seconds / Segundos", "full_name": "Driver / Piloto"},
                             hover_data={"lap_duration": ":.3f", "lap_time_formatted": True},
-                            template="plotly_dark"
+                            template="plotly_dark",
+                            color_discrete_sequence=px.colors.qualitative.Pastel
                         )
-                        fig_pace.update_yaxes(autorange="reversed")
+                        fig_pace.update_yaxes(autorange="reversed", gridcolor="rgba(255,255,255,0.05)")
+                        fig_pace.update_xaxes(gridcolor="rgba(255,255,255,0.05)")
+                        fig_pace.update_layout(
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            plot_bgcolor='rgba(30,41,59,0.2)',
+                            margin=dict(t=50, b=20, l=10, r=10)
+                        )
                         st.plotly_chart(fig_pace, use_container_width=True)
                     else:
                         st.info(t["no_data"])
@@ -246,7 +346,7 @@ if not df_sessions.empty:
                             df_stints_sel['lap_end'] = pd.to_numeric(df_stints_sel['lap_end'], errors='coerce')
                             df_stints_sel['stint_length'] = df_stints_sel['lap_end'] - df_stints_sel['lap_start'] + 1
                             
-                            compound_colors = {"SOFT": "red", "MEDIUM": "yellow", "HARD": "white", "INTERMEDIATE": "green", "WET": "blue"}
+                            compound_colors = {"SOFT": "#EF4444", "MEDIUM": "#FBBF24", "HARD": "#F8FAFC", "INTERMEDIATE": "#10B981", "WET": "#3B82F6"}
                             
                             fig_stint = px.bar(
                                 df_stints_sel.dropna(subset=['stint_length']), 
@@ -259,6 +359,12 @@ if not df_sessions.empty:
                                 labels={"stint_number": "Stint", "stint_length": "Laps Driven / Voltas Completadas", "compound": "Compound / Pneu"},
                                 template="plotly_dark"
                             )
+                            fig_stint.update_layout(
+                                paper_bgcolor='rgba(0,0,0,0)',
+                                plot_bgcolor='rgba(30,41,59,0.2)',
+                                margin=dict(t=50, b=20, l=10, r=10)
+                            )
+                            fig_stint.update_yaxes(gridcolor="rgba(255,255,255,0.05)")
                             st.plotly_chart(fig_stint, use_container_width=True)
                         else:
                             st.info(t["no_data"])
@@ -292,6 +398,13 @@ if not df_sessions.empty:
                                         template="plotly_dark", 
                                         color_discrete_sequence=['#deff9a']
                                     )
+                                    fig_speed.update_layout(
+                                        paper_bgcolor='rgba(0,0,0,0)',
+                                        plot_bgcolor='rgba(30,41,59,0.2)',
+                                        margin=dict(t=50, b=20, l=10, r=10)
+                                    )
+                                    fig_speed.update_yaxes(gridcolor="rgba(255,255,255,0.05)")
+                                    fig_speed.update_xaxes(gridcolor="rgba(255,255,255,0.05)")
                                     st.plotly_chart(fig_speed, use_container_width=True)
                                 else:
                                     st.info(f"{name}: {t['no_data']}")
