@@ -7,9 +7,11 @@
 
 
 
-<a href="#en-project-overview">English</a> •
-<a href="#pt-visao-geral-do-projeto">Português</a>
+<a href="#en">English</a> •
+<a href="#pt">Português</a>
 </p>
+
+<a name="en"></a>
 
 [EN] Project Overview
 
@@ -75,6 +77,8 @@ pip install -r requirements.txt
 streamlit run app.py
 
 
+<a name="pt"></a>
+
 [PT] Visão Geral do Projeto
 
 O SchimiAI é uma aplicação web interativa de análise de dados projetada para avaliar o ritmo de corrida, a consistência dos pilotos e a degradação dos pneus na Fórmula 1.
@@ -127,7 +131,7 @@ python3 -m venv venv
 source venv/bin/activate  # No Windows usa: venv\Scripts\activate
 
 
-3. Instale as dependências necessárias:
+3. Install as dependências necessárias:
 
 [bash]
 pip install -r requirements.txt
