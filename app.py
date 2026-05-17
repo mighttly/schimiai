@@ -59,13 +59,32 @@ texts = {
 }
 t = texts[language]
 
-# --- METADADOS DAS PISTAS (Distâncias Oficiais em KM) ---
+# --- METADADOS DAS PISTAS (Distâncias Oficiais e IDs de Imagem da F1) ---
 track_meta = {
-    "Bahrain": 5.412, "Jeddah": 6.174, "Melbourne": 5.278, "Suzuka": 5.807, "Shanghai": 5.451,
-    "Miami": 5.412, "Imola": 4.909, "Monaco": 3.337, "Montreal": 4.361, "Barcelona": 4.657,
-    "Spielberg": 4.318, "Silverstone": 5.891, "Budapest": 4.381, "Spa": 7.004, "Zandvoort": 4.259,
-    "Monza": 5.793, "Baku": 6.003, "Singapore": 4.940, "Austin": 5.513, "Mexico City": 4.304,
-    "Sao Paulo": 4.309, "Las Vegas": 6.201, "Lusail": 5.419, "Abu Dhabi": 5.281
+    "Bahrain": {"length": 5.412, "img_id": "Bahrain"},
+    "Jeddah": {"length": 6.174, "img_id": "Saudi_Arabia"},
+    "Melbourne": {"length": 5.278, "img_id": "Australia"},
+    "Suzuka": {"length": 5.807, "img_id": "Japan"},
+    "Shanghai": {"length": 5.451, "img_id": "China"},
+    "Miami": {"length": 5.412, "img_id": "Miami"},
+    "Imola": {"length": 4.909, "img_id": "Emilia_Romagna"},
+    "Monaco": {"length": 3.337, "img_id": "Monaco"},
+    "Montreal": {"length": 4.361, "img_id": "Canada"},
+    "Barcelona": {"length": 4.657, "img_id": "Spain"},
+    "Spielberg": {"length": 4.318, "img_id": "Austria"},
+    "Silverstone": {"length": 5.891, "img_id": "Great_Britain"},
+    "Budapest": {"length": 4.381, "img_id": "Hungary"},
+    "Spa": {"length": 7.004, "img_id": "Belgium"},
+    "Zandvoort": {"length": 4.259, "img_id": "Netherlands"},
+    "Monza": {"length": 5.793, "img_id": "Italy"},
+    "Baku": {"length": 6.003, "img_id": "Azerbaijan"},
+    "Singapore": {"length": 4.940, "img_id": "Singapore"},
+    "Austin": {"length": 5.513, "img_id": "USA"},
+    "Mexico City": {"length": 4.304, "img_id": "Mexico"},
+    "Sao Paulo": {"length": 4.309, "img_id": "Brazil"},
+    "Las Vegas": {"length": 6.201, "img_id": "Las_Vegas"},
+    "Lusail": {"length": 5.419, "img_id": "Qatar"},
+    "Abu Dhabi": {"length": 5.281, "img_id": "Abu_Dhabi"}
 }
 
 # --- FUNÇÃO AUXILIAR DE FORMATAÇÃO DE TEMPO ---
@@ -105,7 +124,6 @@ if not df_sessions.empty:
         df_laps = get_data("laps", {"session_key": sk})
 
     if not df_drivers.empty and not df_laps.empty:
-        # MODIFICAÇÃO: Utilizando full_name para exibição completa do nome do piloto
         df_drivers['full_name'] = df_drivers['full_name'].fillna(df_drivers['broadcast_name'])
         driver_map = dict(zip(df_drivers['full_name'], df_drivers['driver_number']))
         selected_driver_names = sorted(list(driver_map.keys()))
@@ -132,7 +150,6 @@ if not df_sessions.empty:
                 winner_name = t["no_data"]
                 fastest_lap_time = t["no_data"]
                 
-                # Forçar tipagem correta
                 df_laps['lap_number'] = pd.to_numeric(df_laps['lap_number'], errors='coerce')
                 df_laps['lap_duration'] = pd.to_numeric(df_laps['lap_duration'], errors='coerce')
                 
@@ -148,33 +165,33 @@ if not df_sessions.empty:
                 df_valid_laps = df_laps.dropna(subset=['lap_duration']).sort_values(by='lap_duration')
                 if not df_valid_laps.empty:
                     fastest_lap_row = df_valid_laps.iloc[0]
-                    # MODIFICAÇÃO: Exibição no formato MM:SS.mmm para a volta mais rápida
                     fastest_lap_time = format_lap_time(fastest_lap_row['lap_duration'])
                     fastest_lap_driver = df_drivers[df_drivers['driver_number'] == fastest_lap_row['driver_number']]['full_name'].iloc[0]
                     fastest_lap_str = f"{fastest_lap_time} ({fastest_lap_driver})"
                 else:
                     fastest_lap_str = t["no_data"]
 
+                loc = session_info['location']
+                metadata = track_meta.get(loc, {"length": 5.0, "img_id": "Unknown"})
+                length = metadata["length"]
+                laps_count = max_lap if pd.notna(max_lap) else 0
+
                 with col_stats:
                     st.metric(t["race_winner"], winner_name)
                     st.metric(t["fastest_lap"], fastest_lap_str)
                     st.metric(t["circuit_name"], session_info['circuit_short_name'])
                     st.metric(t["location"], f"{session_info['location']}, {session_info['country_name']}")
-                    
-                    loc = session_info['location']
-                    length = track_meta.get(loc, 5.0)
-                    laps_count = max_lap if pd.notna(max_lap) else 0
                     st.metric(t["track_length"], f"{length} km")
                     st.metric(t["total_km"], f"{round(length * laps_count, 2)} km")
                 
                 with col_map:
-                    # CORREÇÃO DA IMAGEM: Sanatização robusta de strings para a URL oficial da F1
-                    circuit_raw_name = session_info['circuit_short_name'].replace(" ", "_").replace(".", "").strip()
-                    map_url = f"https://media.formula1.com/image/upload/f_auto,q_auto/content/dam/fom-website/2018-redesign-assets/circuit-maps/16x9/{circuit_raw_name}.png"
+                    # MODIFICAÇÃO: Utilização do mapeamento robusto de IDs de imagem da F1 CDN
+                    img_id = metadata["img_id"]
+                    map_url = f"https://media.formula1.com/image/upload/f_auto,q_auto/content/dam/fom-website/2018-redesign-assets/circuit-maps/16x9/{img_id}.png"
                     
-                    try:
+                    if img_id != "Unknown":
                         st.image(map_url, caption=f"Circuit Layout: {session_info['circuit_short_name']}", use_container_width=True)
-                    except:
+                    else:
                         st.info("Layout map preview currently unavailable for this circuit.")
 
             # --- ABA 1: RITMO & PNEUS ---
@@ -184,7 +201,6 @@ if not df_sessions.empty:
                 df_pace = df_pace.merge(df_drivers[['driver_number', 'full_name']], on='driver_number', how='left')
                 
                 if not df_pace.empty:
-                    # MODIFICAÇÃO: Criação da coluna de texto com formato F1 oficial para exibição no Hover
                     df_pace['lap_time_formatted'] = df_pace['lap_duration'].apply(format_lap_time)
                     
                     fig_pace = px.line(
