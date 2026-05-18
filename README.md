@@ -22,7 +22,7 @@ By directly consuming the open-source OpenF1 API, this app processes massive str
 
 🚀 Live Demo
 
-🔗 Click here to access the Live Application
+🔗 **[Click here to access the Live Application](https://schimiai-livedemo.streamlit.app)**
 
 📊 Feature Pillars & Data Engineering
 
@@ -61,9 +61,9 @@ O nome do projeto é um tributo a Hannah Schmitz, a Engenheira Principal de Estr
 
 Consumindo dados diretamente da OpenF1 API (pública e de código aberto), a aplicação trata e renderiza fluxos pesados de informações da pista em quatro abas dinâmicas, interativas e com visual premium.
 
-🚀 Demonstração Ao Vivo
+🚀 Live Demo
 
-🔗 Clique aqui para acessar a Aplicação em Produção
+🔗 **[Clique aqui para acessar a Aplicação em Produção](https://schimiai-livedemo.streamlit.app)**
 
 📊 Pilares de Funcionalidades & Engenharia de Dados
 
